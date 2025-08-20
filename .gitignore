@@ -1,0 +1,77 @@
+# Visual Studio / .NET exclusions
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build directories
+**/bin/
+**/obj/
+**/Debug/
+**/Release/
+
+# Rider / ReSharper
+_ReSharper*/
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+packages/
+project.lock.json
+project.fragment.lock.json
+
+# Dotnet tools & artifacts
+.tools/
+.toolstargets
+.nuget/
+
+# Runtime files
+*.runtimeconfig.dev.json
+
+# SQLite / local databases
+*.db
+*.sqlite
+publicorders.db
+
+# Generated reports and logs
+report_*.html
+report_*.htm
+*.log
+
+# Test results
+TestResults/
+*.trx
+
+# Temporary / backup
+*.bak
+*.tmp
+*.swp
+
+# OS files
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+
+# Generated code
+*.generated.cs
+*._UpgradeReport_Files/
+
+# User/local secrets and local settings
+secrets.json
+appsettings.*.Local.json
+*.local.json
+.claude/
+.claude/*.local.json
+
+# VS publish folder
+*.PublishProfile
+
+# Misc
+*.vsix
+
+# Keep project appsettings committed unless it's a local-only file under a dev path
+# (Do not ignore project-level appsettings.json files by default)
