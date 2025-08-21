@@ -49,6 +49,13 @@ namespace PublicOrderAggregator.Application.Services
                     </div>
                 </div>
 
+                <div class=""ai-reasoning-section"">
+                    <div class=""reasoning-header"">🤖 Decyzja AI - Dlaczego ten przetarg został wybrany</div>
+                    <div class=""reasoning-content"">
+                        {(!string.IsNullOrEmpty(order.ClassificationReasoning) ? order.ClassificationReasoning : "Brak uzasadnienia AI")}
+                    </div>
+                </div>
+
                 <div class=""requirements-section"">
                     <div class=""requirements-header"">Wymagania</div>
                     <div class=""requirements-content"">
@@ -242,6 +249,36 @@ namespace PublicOrderAggregator.Application.Services
             font-size: 14px;
             line-height: 1.7;
             color: #374151;
+        }}
+
+        .ai-reasoning-section {{
+            padding: 20px 24px;
+            background: #eff6ff;
+            border-top: 1px solid #e5e7eb;
+            border-left: 4px solid #3b82f6;
+        }}
+
+        .reasoning-header {{
+            font-size: 12px;
+            font-weight: 600;
+            color: #1e40af;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+
+        .reasoning-content {{
+            font-size: 14px;
+            line-height: 1.6;
+            color: #1e40af;
+            font-style: italic;
+            background: #ffffff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #dbeafe;
         }}
 
         @media (max-width: 768px) {{

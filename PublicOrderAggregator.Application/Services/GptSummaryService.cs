@@ -1,8 +1,9 @@
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using OpenAI_API;
-using OpenAI_API.Models;
+using OpenAI;
+using OpenAI.Chat;
+using System.ClientModel;
 using PublicOrderAggregator.Domain.Entities;
 using PublicOrderAggregator.Domain.Interfaces;
 
@@ -12,7 +13,12 @@ namespace PublicOrderAggregator.Application.Services
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<GptSummaryService> _logger;
-        private readonly OpenAIAPI _openAiApi;
+        private readonly OpenAIClient _openAiClient;
+        private readonly ChatClient _chatClient;
+        private readonly int _maxTokens;
+        private readonly float _temperature;
+        private readonly int _maxContentLength;
+        private readonly int _batchProcessingDelay;
 
         public GptSummaryService(IConfiguration configuration, ILogger<GptSummaryService> logger)
         {
@@ -25,7 +31,36 @@ namespace PublicOrderAggregator.Application.Services
                 throw new InvalidOperationException("OpenAI API key is not configured");
             }
             
-            _openAiApi = new OpenAIAPI(apiKey);
+            var model = _configuration["OpenAI:Model"];
+            if (string.IsNullOrEmpty(model))
+            {
+                throw new InvalidOperationException("Brak ustawienia OpenAI:Model w konfiguracji.");
+            }
+            
+            _maxTokens = _configuration.GetValue<int>("OpenAI:MaxTokens");
+            if (_maxTokens == 0)
+            {
+                throw new InvalidOperationException("Brak ustawienia OpenAI:MaxTokens w konfiguracji.");
+            }
+            
+            _temperature = _configuration.GetValue<float>("OpenAI:Temperature");
+            _maxContentLength = _configuration.GetValue<int>("OpenAI:MaxContentLength");
+            if (_maxContentLength == 0)
+            {
+                throw new InvalidOperationException("Brak ustawienia OpenAI:MaxContentLength w konfiguracji.");
+            }
+            
+            _batchProcessingDelay = _configuration.GetValue<int>("OpenAI:BatchProcessingDelay");
+            if (_batchProcessingDelay == 0)
+            {
+                throw new InvalidOperationException("Brak ustawienia OpenAI:BatchProcessingDelay w konfiguracji.");
+            }
+            
+            _openAiClient = new OpenAIClient(apiKey);
+            _chatClient = _openAiClient.GetChatClient(model);
+            
+            _logger.LogInformation("GptSummaryService initialized with model: {Model}, MaxTokens: {MaxTokens}, Temperature: {Temperature}", 
+                model, _maxTokens, _temperature);
         }
 
         public async Task<string> GenerateSummaryAsync(string htmlContent)
@@ -37,15 +72,10 @@ namespace PublicOrderAggregator.Application.Services
 
             try
             {
-                // Truncate content to avoid token limits (approximately 6000 characters ≈ 1500 tokens)
-                var truncatedContent = htmlContent.Length > 6000 
-                    ? htmlContent.Substring(0, 6000) + "... [content truncated]"
+                // Truncate content to avoid token limits
+                var truncatedContent = htmlContent.Length > _maxContentLength 
+                    ? htmlContent.Substring(0, _maxContentLength) + "... [content truncated]"
                     : htmlContent;
-
-                var chat = _openAiApi.Chat.CreateConversation();
-                chat.Model = Model.ChatGPTTurbo;
-                chat.RequestParameters.MaxTokens = 500;
-                chat.RequestParameters.Temperature = 0.3;
 
                 var prompt = @"Przeanalizuj poniższe ogłoszenie i napisz WYŁĄCZNIE merytoryczne wymagania techniczne i warunki realizacji w 200-250 słowach. 
 
@@ -70,22 +100,36 @@ Pisz konkretnie, bez wstępów. Każde zdanie = konkretna informacja.
 TREŚĆ OGŁOSZENIA:
 " + truncatedContent;
 
-                chat.AppendUserInput(prompt);
-                
-                var response = await chat.GetResponseFromChatbotAsync();
+                var messages = new List<ChatMessage>
+                {
+                    new UserChatMessage(prompt)
+                };
+
+                var chatCompletionOptions = new ChatCompletionOptions
+                {
+                    MaxOutputTokenCount = _maxTokens,
+                    Temperature = _temperature
+                };
+
+                var response = await _chatClient.CompleteChatAsync(messages, chatCompletionOptions);
                 
                 _logger.LogInformation("Successfully generated GPT summary");
-                return response;
+                return response.Value.Content[0].Text;
             }
-            catch (HttpRequestException ex) when (ex.Message.Contains("rate_limit_exceeded") || ex.Message.Contains("TooManyRequests"))
+            catch (ClientResultException ex) when (ex.Status == 429)
             {
                 _logger.LogWarning(ex, "OpenAI rate limit exceeded, returning fallback summary");
                 return "Summary generation temporarily unavailable due to rate limits. Please try again later.";
             }
-            catch (HttpRequestException ex) when (ex.Message.Contains("Request too large"))
+            catch (ClientResultException ex) when (ex.Status == 413)
             {
                 _logger.LogWarning(ex, "Content too large for OpenAI, returning fallback summary");
                 return "Content too large for automatic summarization. Manual review required.";
+            }
+            catch (ClientResultException ex)
+            {
+                _logger.LogError(ex, "OpenAI API error: Status {Status}, Message: {Message}", ex.Status, ex.Message);
+                return $"Error generating summary: API error (Status: {ex.Status})";
             }
             catch (Exception ex)
             {
@@ -131,7 +175,7 @@ TREŚĆ OGŁOSZENIA:
                         }
                         
                         // Add small delay to avoid rate limits
-                        await Task.Delay(500);
+                        await Task.Delay(_batchProcessingDelay);
                     }
                     catch (Exception ex)
                     {
