@@ -127,6 +127,7 @@ namespace PublicOrderAggregator.Console
             // Services
             services.AddScoped<IHtmlSanitizer, HtmlSanitizer>();
             services.AddScoped<IGPTSummaryService, GptSummaryService>();
+            services.AddScoped<IGPTClassificationService, GPTClassificationService>();
             services.AddScoped<IReportGenerator, HtmlReportGenerator>();
             
             // HTTP Client for BZP API

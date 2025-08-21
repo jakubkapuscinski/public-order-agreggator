@@ -11,6 +11,7 @@ namespace PublicOrderAggregator.Domain.Entities
         public DateTime SubmissionDeadline { get; set; }
         public string Subject { get; set; } = string.Empty;
         public string Requirements { get; set; } = string.Empty; // GPT summary
+        public string ClassificationReasoning { get; set; } = string.Empty; // AI classification reasoning
         public string DataSource { get; set; } = string.Empty;
         public string OriginalUrl { get; set; } = string.Empty;
         public DateTime FetchedAt { get; set; }
