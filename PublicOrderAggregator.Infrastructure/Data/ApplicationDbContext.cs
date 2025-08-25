@@ -24,10 +24,15 @@ namespace PublicOrderAggregator.Infrastructure.Data
                 entity.Property(e => e.Subject).IsRequired().HasMaxLength(1000);
                 entity.Property(e => e.DataSource).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.OriginalUrl).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.HtmlContent); // Store original HTML for section extraction
                 entity.HasIndex(e => e.OriginalUrl);
-                entity.HasIndex(e => e.DataSource);
+                entity.HasIndex(e => e.DataSource); 
                 entity.HasIndex(e => e.TenderDate);
                 entity.HasIndex(e => e.SubmissionDeadline);
+                entity.HasIndex(e => e.IsClassified);
+                entity.HasIndex(e => e.IsRelevant); // Index for filtering relevant orders
+                entity.HasIndex(e => e.IsSummarized);
+                entity.HasIndex(e => e.IsIncludedInReport);
             });
         }
     }

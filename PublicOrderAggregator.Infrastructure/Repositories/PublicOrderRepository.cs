@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using PublicOrderAggregator.Domain.Entities;
 using PublicOrderAggregator.Domain.Interfaces;
@@ -17,7 +14,7 @@ namespace PublicOrderAggregator.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<PublicOrder> GetByIdAsync(int id)
+        public async Task<PublicOrder?> GetByIdAsync(int id)
         {
             return await _context.PublicOrders.FindAsync(id);
         }
@@ -57,9 +54,50 @@ namespace PublicOrderAggregator.Infrastructure.Repositories
             }
         }
 
-        public async Task<bool> ExistsAsync(string originalUrl)
+        public async Task<bool> ExistsAsync(string externalId, string dataSource)
         {
-            return await _context.PublicOrders.AnyAsync(x => x.OriginalUrl == originalUrl);
+            return await _context.PublicOrders.AnyAsync(x => x.ExternalId == externalId && x.DataSource == dataSource);
+        }
+
+        public async Task UpdateBatchAsync(IEnumerable<PublicOrder> orders)
+        {
+            _context.PublicOrders.UpdateRange(orders);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<IEnumerable<PublicOrder>> GetUnclassifiedOrdersAsync()
+        {
+            return await _context.PublicOrders
+                .Where(o => !o.IsClassified)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<PublicOrder>> GetUnsummarizedOrdersAsync()
+        {
+            return await _context.PublicOrders
+                .Where(o => o.IsClassified && o.IsRelevant && !o.IsSummarized)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<PublicOrder>> GetOrdersForReportAsync(DateTime? since = null)
+        {
+            var query = _context.PublicOrders
+                .Where(o => o.IsClassified && o.IsRelevant && o.IsSummarized && !o.IsIncludedInReport); // Only orders not yet included in any report
+            
+            if (since.HasValue)
+            {
+                query = query.Where(o => o.SummarizedAt >= since.Value);
+            }
+            
+            return await query.ToListAsync();
+        }
+
+        public async Task<DateTime?> GetLastReportGenerationDateAsync()
+        {
+            // Get the latest LastReportedAt date from any order
+            return await _context.PublicOrders
+                .Where(o => o.IsIncludedInReport && o.LastReportedAt.HasValue)
+                .MaxAsync(o => (DateTime?)o.LastReportedAt);
         }
     }
 }
